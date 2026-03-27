@@ -1,0 +1,2 @@
+# pointcloud2_inspector
+用于检查雷达驱动发布的pointcloud2包含的字段，便于编写对应的点云处理程序。
