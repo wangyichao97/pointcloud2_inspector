@@ -1,202 +1,163 @@
-# pointcloud2_inspector
+# lidar_tools（统一 LiDAR 工具包）
 
-[中文文档（README.zh-CN.md）](README.zh-CN.md)
+`lidar_tools` 是一个统一的 LiDAR 工程化工具包，面向以下场景：
+- 驱动联调：确认 `PointCloud2` 字段布局是否符合预期。
+- 预处理验证：在接入 Point-LIO/LIO/SLAM 前验证 ring、时间戳、盲区、降采样、排序等规则。
+- 长期扩展：在单一大包内持续增加新的 LiDAR 类型处理器与调试模块。
 
-`pointcloud2_inspector` is a production-style ROS package for inspecting incoming `sensor_msgs/PointCloud2` metadata and field layout during LiDAR bring-up, sensor integration, and driver adaptation.
+## 设计哲学
 
-It supports a **single shared codebase** with a **build-time switch** for:
-- ROS1 Noetic (`roscpp`)
-- ROS2 Foxy/Humble (`rclcpp`)
+- **一个统一的预处理测试节点**：`lidar_preprocess_tester_node`。
+- **内部多处理器分发**：通过 `lidar_type` 参数切换，不为每个雷达单独建节点。
+- **模块化共享代码**：`common/` 提供通用工具，`pointcloud2_inspector/` 和 `preprocess/` 复用。
+- **兼容 ROS1/ROS2**：单代码树，通过 CMake 选项二选一构建。
 
----
+## 功能模块
 
-## Features
+1. `pointcloud2_inspector`
+   - 打印 PointCloud2 元数据与每个 PointField。
+   - 参数：`topic_name`、`print_every_n_msg`。
 
-- Build-mode selection via CMake options:
-  - `-DBUILD_ROS1=ON`
-  - `-DBUILD_ROS2=ON`
-- Enforced mutual exclusivity at configure time.
-- Runtime parameters:
-  - `topic_name` (default: `/points_raw`)
-  - `print_every_n_msg` (default: `1`, clamped to `1` if `<= 0`)
-- Prints message-level PointCloud2 metadata and all `PointField` entries.
-- Datatype mapping:
-  - `1 INT8`, `2 UINT8`, `3 INT16`, `4 UINT16`, `5 INT32`, `6 UINT32`, `7 FLOAT32`, `8 FLOAT64`, else `UNKNOWN`.
-- Validation warnings if:
-  - `fields` is empty
-  - `width == 0`
-  - `point_step == 0`
-- Startup log includes middleware mode, topic, and print interval.
+2. `lidar_preprocess_tester`
+   - 中央类：`LidarPreprocessTester`。
+   - 枚举支持：`VELO16/LS16/RS16/VELO16SIM/AVIA/MID360/HESAIXT32/JT128`。
+   - MID360 与 JT128 提供更完整处理逻辑：
+     - `pcl::fromROSMsg`
+     - ring 过滤 / 非有限值过滤 / 盲区过滤 / 降采样
+     - 时间顺序检查（JT128）
+     - 相对时间写入输出点的 `intensity`（等价“调试曲率槽位”）
+   - 可选发布：
+     - `/lidar_preprocess_tester/pl_full`
+     - `/lidar_preprocess_tester/pl_surf`
 
----
-
-## Directory tree
+## 目录结构
 
 ```text
-pointcloud2_inspector/
+lidar_tools/
 ├── CMakeLists.txt
 ├── package.xml
 ├── README.md
-├── include/
-│   └── pointcloud2_inspector/
-│       └── pointcloud2_inspector.hpp
+├── config/
+│   ├── lidar_preprocess_tester.yaml
+│   └── pointcloud2_inspector.yaml
+├── docs/
+│   ├── lidar_preprocess_tester/README.md
+│   └── pointcloud2_inspector/README.md
+├── include/lidar_tools/
+│   ├── common/
+│   │   ├── pointcloud_types.hpp
+│   │   ├── pointcloud_utils.hpp
+│   │   └── preprocess_utils.hpp
+│   ├── pointcloud2_inspector/
+│   │   └── pointcloud2_inspector.hpp
+│   └── preprocess/
+│       ├── custom_points.hpp
+│       └── lidar_preprocess_tester.hpp
 ├── launch/
-│   ├── inspector_ros1.launch
-│   └── inspector_ros2.launch.py
+│   ├── lidar_preprocess_tester_ros1.launch
+│   ├── lidar_preprocess_tester_ros2.launch.py
+│   ├── pointcloud2_inspector_ros1.launch
+│   └── pointcloud2_inspector_ros2.launch.py
 └── src/
-    ├── main_ros1.cpp
-    ├── main_ros2.cpp
-    └── pointcloud2_inspector.cpp
+    ├── common/
+    │   ├── pointcloud_utils.cpp
+    │   └── preprocess_utils.cpp
+    ├── pointcloud2_inspector/
+    │   ├── node_ros1.cpp
+    │   ├── node_ros2.cpp
+    │   └── pointcloud2_inspector.cpp
+    └── preprocess/
+        ├── lidar_preprocess_tester.cpp
+        ├── node_ros1.cpp
+        └── node_ros2.cpp
 ```
 
----
+## 构建（ROS1/ROS2 二选一）
 
-## Design notes
-
-### Why one package.xml can be awkward
-ROS1 (`catkin`) and ROS2 (`ament_cmake`) use different build tools and metadata expectations. A truly universal package manifest is sometimes awkward in mixed environments.
-
-This project uses a **single `package.xml` (format 3)** with **conditional dependencies** based on `ROS_VERSION` (REP-149 style). In practice this is a pragmatic compromise that works for typical ROS1/ROS2 environments while keeping one shared package layout.
-
----
-
-## Build instructions
-
-> Build with **exactly one** of `BUILD_ROS1` or `BUILD_ROS2` set to `ON`.
-
-If both are ON or both are OFF, CMake stops with a configure error.
+> 必须满足：仅一个 ON。否则 CMake 直接报错。
 
 ### ROS1 Noetic
 
 ```bash
-# terminal 1
 source /opt/ros/noetic/setup.bash
-
-# catkin workspace assumed
 cd ~/catkin_ws/src
-git clone <your_repo_url> pointcloud2_inspector
+git clone <repo> lidar_tools
 cd ..
-catkin_make -DCMAKE_BUILD_TYPE=Release -DBUILD_ROS1=ON -DBUILD_ROS2=OFF
+catkin_make -DBUILD_ROS1=ON -DBUILD_ROS2=OFF -DCMAKE_BUILD_TYPE=Release
 source devel/setup.bash
 ```
 
 ### ROS2 Foxy
 
 ```bash
-# terminal 1
 source /opt/ros/foxy/setup.bash
-
-# colcon workspace assumed
 cd ~/ros2_ws/src
-git clone <your_repo_url> pointcloud2_inspector
+git clone <repo> lidar_tools
 cd ..
-colcon build --packages-select pointcloud2_inspector \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_ROS1=OFF -DBUILD_ROS2=ON
+colcon build --packages-select lidar_tools --cmake-args -DBUILD_ROS1=OFF -DBUILD_ROS2=ON -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
 ### ROS2 Humble
 
 ```bash
-# terminal 1
 source /opt/ros/humble/setup.bash
-
-# colcon workspace assumed
 cd ~/ros2_ws/src
-git clone <your_repo_url> pointcloud2_inspector
+git clone <repo> lidar_tools
 cd ..
-colcon build --packages-select pointcloud2_inspector \
-  --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_ROS1=OFF -DBUILD_ROS2=ON
+colcon build --packages-select lidar_tools --cmake-args -DBUILD_ROS1=OFF -DBUILD_ROS2=ON -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
----
+## 运行
 
-## Run instructions
+### 1) pointcloud2_inspector
 
-## ROS1
-
-### Default topic and interval
-
+ROS1：
 ```bash
-source ~/catkin_ws/devel/setup.bash
-rosrun pointcloud2_inspector pointcloud2_inspector_node
+rosrun lidar_tools pointcloud2_inspector_node _topic_name:=/points_raw _print_every_n_msg:=1
 ```
 
-### Custom `topic_name`
-
+ROS2：
 ```bash
-rosrun pointcloud2_inspector pointcloud2_inspector_node _topic_name:=/lidar/points
+ros2 run lidar_tools pointcloud2_inspector_node --ros-args -p topic_name:=/points_raw -p print_every_n_msg:=1
 ```
 
-### Custom `print_every_n_msg`
+### 2) lidar_preprocess_tester
 
+ROS1：
 ```bash
-rosrun pointcloud2_inspector pointcloud2_inspector_node _print_every_n_msg:=10
+rosrun lidar_tools lidar_preprocess_tester_node _topic_name:=/points_raw _lidar_type:=6 _blind:=1.0 _point_filter_num:=1 _n_scans:=6 _sort_by_time:=false
 ```
 
-### ROS1 launch file
-
+ROS2：
 ```bash
-roslaunch pointcloud2_inspector inspector_ros1.launch
-roslaunch pointcloud2_inspector inspector_ros1.launch topic_name:=/lidar/points print_every_n_msg:=5
+ros2 run lidar_tools lidar_preprocess_tester_node --ros-args -p topic_name:=/points_raw -p lidar_type:=6 -p blind:=1.0 -p point_filter_num:=1 -p n_scans:=6 -p sort_by_time:=false
 ```
 
-## ROS2 (Foxy/Humble)
+### 3) 指定 JT128
 
-### Default topic and interval
-
+ROS2 示例：
 ```bash
-source ~/ros2_ws/install/setup.bash
-ros2 run pointcloud2_inspector pointcloud2_inspector_node
+ros2 run lidar_tools lidar_preprocess_tester_node --ros-args -p topic_name:=/jt128_points -p lidar_type:=8 -p sort_by_time:=true
 ```
 
-### Custom `topic_name`
+### 4) 指定 MID360
 
+ROS2 示例：
 ```bash
-ros2 run pointcloud2_inspector pointcloud2_inspector_node --ros-args -p topic_name:=/lidar/points
+ros2 run lidar_tools lidar_preprocess_tester_node --ros-args -p topic_name:=/mid360/points -p lidar_type:=6 -p blind:=1.5 -p point_filter_num:=2
 ```
 
-### Custom `print_every_n_msg`
+## 如何新增一种 LiDAR
 
-```bash
-ros2 run pointcloud2_inspector pointcloud2_inspector_node --ros-args -p print_every_n_msg:=10
-```
+1. 在 `LidarType` 增加枚举值（`include/lidar_tools/common/preprocess_utils.hpp`）。
+2. 在 `lidarTypeFromInt()` 与 `lidarTypeToString()` 增加映射（`src/common/preprocess_utils.cpp`）。
+3. 在 `LidarPreprocessTester::process()` 中扩展 dispatch 分支（`src/preprocess/lidar_preprocess_tester.cpp`）。
+4. 在 ROS1/ROS2 节点 `convertPoints()` 中增加该雷达消息解析逻辑（通常 `pcl::fromROSMsg + 自定义点类型`）。
+5. 更新配置与文档。
 
-### ROS2 launch file
+## 模块文档
 
-```bash
-ros2 launch pointcloud2_inspector inspector_ros2.launch.py
-ros2 launch pointcloud2_inspector inspector_ros2.launch.py topic_name:=/lidar/points print_every_n_msg:=5
-```
-
----
-
-## Example output
-
-```text
-[INFO] [pointcloud2_inspector]: ========== PointCloud2 Inspector ==========
-topic       : /points_raw
-frame_id    : lidar_link
-stamp       : sec=1710000000, nanosec=123456789, to_sec=1710000000.123456717
-width/height: 1024 / 1
-point_step  : 16
-row_step    : 16384
-is_dense    : true
-is_bigendian: false
-fields:
-  [0] name=x, offset=0, datatype=7(FLOAT32), count=1
-  [1] name=y, offset=4, datatype=7(FLOAT32), count=1
-  [2] name=z, offset=8, datatype=7(FLOAT32), count=1
-  [3] name=intensity, offset=12, datatype=7(FLOAT32), count=1
-summary     : total fields=4
-===========================================
-```
-
----
-
-## Notes
-
-- The inspector prints every received message by default (`print_every_n_msg=1`).
-- Invalid `print_every_n_msg <= 0` is automatically clamped to `1` and logged.
-- If your sensor publishes very high rate clouds, increase `print_every_n_msg` to reduce console load.
+- `docs/pointcloud2_inspector/README.md`
+- `docs/lidar_preprocess_tester/README.md`

@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-namespace pointcloud2_inspector
+namespace lidar_tools
 {
 
-struct PointFieldView
+struct PointFieldInfo
 {
   std::string name;
   std::uint32_t offset;
@@ -18,20 +18,26 @@ struct PointFieldView
 struct PointCloud2View
 {
   std::string frame_id;
+  std::string stamp_str;
   std::uint32_t height;
   std::uint32_t width;
   bool is_bigendian;
   std::uint32_t point_step;
   std::uint32_t row_step;
   bool is_dense;
-  std::vector<PointFieldView> fields;
+  std::vector<PointFieldInfo> fields;
 };
 
-std::string pointFieldDatatypeToString(uint8_t datatype);
+struct PreprocessPoint
+{
+  float x;
+  float y;
+  float z;
+  float intensity;
+  std::uint16_t ring;
+  double time;
+  std::uint8_t tag;
+  bool finite;
+};
 
-std::string formatPointCloud2Report(
-  const PointCloud2View& msg,
-  const std::string& topic_name,
-  const std::string& timestamp_str);
-
-}  // namespace pointcloud2_inspector
+}  // namespace lidar_tools

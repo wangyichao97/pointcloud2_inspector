@@ -1,8 +1,8 @@
-#include "pointcloud2_inspector/pointcloud2_inspector.hpp"
+#include "lidar_tools/common/pointcloud_utils.hpp"
 
 #include <sstream>
 
-namespace pointcloud2_inspector
+namespace lidar_tools
 {
 
 std::string pointFieldDatatypeToString(const uint8_t datatype)
@@ -30,32 +30,29 @@ std::string pointFieldDatatypeToString(const uint8_t datatype)
   }
 }
 
-std::string formatPointCloud2Report(
-  const PointCloud2View& msg,
-  const std::string& topic_name,
-  const std::string& timestamp_str)
+std::string formatPointCloud2Summary(const PointCloud2View& view, const std::string& topic_name)
 {
   std::ostringstream oss;
   oss << "========== PointCloud2 Inspector ==========" << '\n';
   oss << "topic       : " << topic_name << '\n';
-  oss << "frame_id    : " << msg.frame_id << '\n';
-  oss << "stamp       : " << timestamp_str << '\n';
-  oss << "width/height: " << msg.width << " / " << msg.height << '\n';
-  oss << "point_step  : " << msg.point_step << '\n';
-  oss << "row_step    : " << msg.row_step << '\n';
-  oss << "is_dense    : " << (msg.is_dense ? "true" : "false") << '\n';
-  oss << "is_bigendian: " << (msg.is_bigendian ? "true" : "false") << '\n';
+  oss << "frame_id    : " << view.frame_id << '\n';
+  oss << "stamp       : " << view.stamp_str << '\n';
+  oss << "width/height: " << view.width << " / " << view.height << '\n';
+  oss << "point_step  : " << view.point_step << '\n';
+  oss << "row_step    : " << view.row_step << '\n';
+  oss << "is_dense    : " << (view.is_dense ? "true" : "false") << '\n';
+  oss << "is_bigendian: " << (view.is_bigendian ? "true" : "false") << '\n';
   oss << "fields:" << '\n';
 
-  if (msg.fields.empty())
+  if (view.fields.empty())
   {
     oss << "  [warning] message contains no fields." << '\n';
   }
   else
   {
-    for (std::size_t i = 0; i < msg.fields.size(); ++i)
+    for (std::size_t i = 0; i < view.fields.size(); ++i)
     {
-      const auto& field = msg.fields[i];
+      const auto& field = view.fields[i];
       oss << "  [" << i << "] name=" << field.name
           << ", offset=" << field.offset
           << ", datatype=" << static_cast<int>(field.datatype)
@@ -64,18 +61,18 @@ std::string formatPointCloud2Report(
     }
   }
 
-  if (msg.width == 0)
+  if (view.width == 0)
   {
     oss << "  [warning] width is zero." << '\n';
   }
-  if (msg.point_step == 0)
+  if (view.point_step == 0)
   {
     oss << "  [warning] point_step is zero." << '\n';
   }
 
-  oss << "summary     : total fields=" << msg.fields.size() << '\n';
+  oss << "summary     : total fields=" << view.fields.size() << '\n';
   oss << "===========================================";
   return oss.str();
 }
 
-}  // namespace pointcloud2_inspector
+}  // namespace lidar_tools

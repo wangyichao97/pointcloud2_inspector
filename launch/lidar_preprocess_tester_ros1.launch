@@ -1,0 +1,21 @@
+<launch>
+  <arg name="topic_name" default="/points_raw"/>
+  <arg name="lidar_type" default="6"/>
+  <arg name="blind" default="1.0"/>
+  <arg name="point_filter_num" default="1"/>
+  <arg name="n_scans" default="6"/>
+  <arg name="sort_by_time" default="false"/>
+  <arg name="publish_full_cloud" default="true"/>
+  <arg name="publish_surf_cloud" default="true"/>
+
+  <node pkg="lidar_tools" type="lidar_preprocess_tester_node" name="lidar_preprocess_tester_node" output="screen">
+    <param name="topic_name" value="$(arg topic_name)"/>
+    <param name="lidar_type" value="$(arg lidar_type)"/>
+    <param name="blind" value="$(arg blind)"/>
+    <param name="point_filter_num" value="$(arg point_filter_num)"/>
+    <param name="n_scans" value="$(arg n_scans)"/>
+    <param name="sort_by_time" value="$(arg sort_by_time)"/>
+    <param name="publish_full_cloud" value="$(arg publish_full_cloud)"/>
+    <param name="publish_surf_cloud" value="$(arg publish_surf_cloud)"/>
+  </node>
+</launch>

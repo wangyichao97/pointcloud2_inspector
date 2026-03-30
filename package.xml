@@ -1,19 +1,12 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>pointcloud2_inspector</name>
+  <name>lidar_tools</name>
   <version>1.0.0</version>
-  <description>
-    Runtime PointCloud2 layout inspector for ROS1 (Noetic) and ROS2 (Foxy/Humble),
-    with configurable topic subscription and print throttling.
-  </description>
+  <description>统一的 LiDAR 调试与预处理测试工具包，支持 PointCloud2 检查与多雷达预处理验证。</description>
 
-  <maintainer email="maintainer@example.com">PointCloud2 Inspector Maintainer</maintainer>
+  <maintainer email="maintainer@example.com">Lidar Tools Maintainer</maintainer>
   <license>MIT</license>
 
-  <!--
-    Single package.xml for dual ROS1/ROS2 support:
-    dependency tags are conditionally selected with ROS_VERSION.
-  -->
   <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
   <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake</buildtool_depend>
 
@@ -22,6 +15,9 @@
 
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>pcl_conversions</depend>
+  <depend condition="$ROS_VERSION == 1">pcl_ros</depend>
+  <depend condition="$ROS_VERSION == 2">pcl_msgs</depend>
 
   <export>
     <build_type condition="$ROS_VERSION == 1">catkin</build_type>

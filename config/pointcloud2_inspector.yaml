@@ -1,0 +1,8 @@
+pointcloud2_inspector_node:
+  ros__parameters:
+    topic_name: "/points_raw"
+    print_every_n_msg: 1
+
+# ROS1 使用示例：
+# topic_name: /points_raw
+# print_every_n_msg: 1
