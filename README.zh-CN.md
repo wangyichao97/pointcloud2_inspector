@@ -1,42 +1,48 @@
 # pointcloud2_inspector
 
-[中文文档（README.zh-CN.md）](README.zh-CN.md)
+`pointcloud2_inspector` 是一个面向生产环境的 ROS 包，用于在激光雷达联调、驱动适配和数据排查阶段，检查并打印 `sensor_msgs/PointCloud2` 的消息布局与字段信息。
 
-`pointcloud2_inspector` is a production-style ROS package for inspecting incoming `sensor_msgs/PointCloud2` metadata and field layout during LiDAR bring-up, sensor integration, and driver adaptation.
-
-It supports a **single shared codebase** with a **build-time switch** for:
-- ROS1 Noetic (`roscpp`)
-- ROS2 Foxy/Humble (`rclcpp`)
+该项目基于**单一代码库**，通过 CMake 构建选项切换目标中间件，支持：
+- ROS1 Noetic（`roscpp`）
+- ROS2 Foxy / Humble（`rclcpp`）
 
 ---
 
-## Features
+## 功能特性
 
-- Build-mode selection via CMake options:
+- 通过 CMake 选项选择构建目标：
   - `-DBUILD_ROS1=ON`
   - `-DBUILD_ROS2=ON`
-- Enforced mutual exclusivity at configure time.
-- Runtime parameters:
-  - `topic_name` (default: `/points_raw`)
-  - `print_every_n_msg` (default: `1`, clamped to `1` if `<= 0`)
-- Prints message-level PointCloud2 metadata and all `PointField` entries.
-- Datatype mapping:
-  - `1 INT8`, `2 UINT8`, `3 INT16`, `4 UINT16`, `5 INT32`, `6 UINT32`, `7 FLOAT32`, `8 FLOAT64`, else `UNKNOWN`.
-- Validation warnings if:
-  - `fields` is empty
-  - `width == 0`
-  - `point_step == 0`
-- Startup log includes middleware mode, topic, and print interval.
+- 配置阶段强制互斥：
+  - 两者同时 ON -> 报错
+  - 两者同时 OFF -> 报错
+- 运行时参数：
+  - `topic_name`（默认：`/points_raw`）
+  - `print_every_n_msg`（默认：`1`，当 `<= 0` 时自动夹紧为 `1`）
+- 打印 PointCloud2 消息级元数据 + 全部 `PointField` 字段详情。
+- `datatype` 数值映射：
+  - `1 INT8`、`2 UINT8`、`3 INT16`、`4 UINT16`
+  - `5 INT32`、`6 UINT32`、`7 FLOAT32`、`8 FLOAT64`
+  - 其它 -> `UNKNOWN`
+- 健壮性检查：
+  - `fields` 为空时告警
+  - `width == 0` 时告警
+  - `point_step == 0` 时告警
+- 启动时一次性打印：
+  - 当前运行模式（ROS1/ROS2）
+  - 订阅话题
+  - 打印间隔
 
 ---
 
-## Directory tree
+## 目录结构
 
 ```text
 pointcloud2_inspector/
 ├── CMakeLists.txt
 ├── package.xml
 ├── README.md
+├── README.zh-CN.md
 ├── include/
 │   └── pointcloud2_inspector/
 │       └── pointcloud2_inspector.hpp
@@ -51,28 +57,24 @@ pointcloud2_inspector/
 
 ---
 
-## Design notes
+## 设计说明
 
-### Why one package.xml can be awkward
-ROS1 (`catkin`) and ROS2 (`ament_cmake`) use different build tools and metadata expectations. A truly universal package manifest is sometimes awkward in mixed environments.
+### 关于单 package.xml 的取舍
+ROS1（`catkin`）与 ROS2（`ament_cmake`）在构建系统上不同。为了保持单包结构，本项目使用 `package.xml` format 3，并基于 `ROS_VERSION` 使用条件依赖（REP-149 风格）。
 
-This project uses a **single `package.xml` (format 3)** with **conditional dependencies** based on `ROS_VERSION` (REP-149 style). In practice this is a pragmatic compromise that works for typical ROS1/ROS2 environments while keeping one shared package layout.
+这是一种工程上实用的折中方案：在常见 ROS1/ROS2 环境中可工作，同时保持代码库与目录统一。
 
 ---
 
-## Build instructions
+## 构建说明
 
-> Build with **exactly one** of `BUILD_ROS1` or `BUILD_ROS2` set to `ON`.
-
-If both are ON or both are OFF, CMake stops with a configure error.
+> 必须且只能启用一个构建选项：`BUILD_ROS1` 或 `BUILD_ROS2`。
 
 ### ROS1 Noetic
 
 ```bash
-# terminal 1
 source /opt/ros/noetic/setup.bash
 
-# catkin workspace assumed
 cd ~/catkin_ws/src
 git clone <your_repo_url> pointcloud2_inspector
 cd ..
@@ -83,10 +85,8 @@ source devel/setup.bash
 ### ROS2 Foxy
 
 ```bash
-# terminal 1
 source /opt/ros/foxy/setup.bash
 
-# colcon workspace assumed
 cd ~/ros2_ws/src
 git clone <your_repo_url> pointcloud2_inspector
 cd ..
@@ -98,10 +98,8 @@ source install/setup.bash
 ### ROS2 Humble
 
 ```bash
-# terminal 1
 source /opt/ros/humble/setup.bash
 
-# colcon workspace assumed
 cd ~/ros2_ws/src
 git clone <your_repo_url> pointcloud2_inspector
 cd ..
@@ -112,58 +110,58 @@ source install/setup.bash
 
 ---
 
-## Run instructions
+## 运行说明
 
 ## ROS1
 
-### Default topic and interval
+### 默认参数运行
 
 ```bash
 source ~/catkin_ws/devel/setup.bash
 rosrun pointcloud2_inspector pointcloud2_inspector_node
 ```
 
-### Custom `topic_name`
+### 自定义 `topic_name`
 
 ```bash
 rosrun pointcloud2_inspector pointcloud2_inspector_node _topic_name:=/lidar/points
 ```
 
-### Custom `print_every_n_msg`
+### 自定义 `print_every_n_msg`
 
 ```bash
 rosrun pointcloud2_inspector pointcloud2_inspector_node _print_every_n_msg:=10
 ```
 
-### ROS1 launch file
+### 使用 ROS1 launch 文件
 
 ```bash
 roslaunch pointcloud2_inspector inspector_ros1.launch
 roslaunch pointcloud2_inspector inspector_ros1.launch topic_name:=/lidar/points print_every_n_msg:=5
 ```
 
-## ROS2 (Foxy/Humble)
+## ROS2（Foxy / Humble）
 
-### Default topic and interval
+### 默认参数运行
 
 ```bash
 source ~/ros2_ws/install/setup.bash
 ros2 run pointcloud2_inspector pointcloud2_inspector_node
 ```
 
-### Custom `topic_name`
+### 自定义 `topic_name`
 
 ```bash
 ros2 run pointcloud2_inspector pointcloud2_inspector_node --ros-args -p topic_name:=/lidar/points
 ```
 
-### Custom `print_every_n_msg`
+### 自定义 `print_every_n_msg`
 
 ```bash
 ros2 run pointcloud2_inspector pointcloud2_inspector_node --ros-args -p print_every_n_msg:=10
 ```
 
-### ROS2 launch file
+### 使用 ROS2 launch 文件
 
 ```bash
 ros2 launch pointcloud2_inspector inspector_ros2.launch.py
@@ -172,7 +170,7 @@ ros2 launch pointcloud2_inspector inspector_ros2.launch.py topic_name:=/lidar/po
 
 ---
 
-## Example output
+## 输出示例
 
 ```text
 [INFO] [pointcloud2_inspector]: ========== PointCloud2 Inspector ==========
@@ -195,8 +193,8 @@ summary     : total fields=4
 
 ---
 
-## Notes
+## 补充说明
 
-- The inspector prints every received message by default (`print_every_n_msg=1`).
-- Invalid `print_every_n_msg <= 0` is automatically clamped to `1` and logged.
-- If your sensor publishes very high rate clouds, increase `print_every_n_msg` to reduce console load.
+- 默认每条消息都打印（`print_every_n_msg=1`）。
+- 如果点云频率很高，建议增大 `print_every_n_msg`，避免终端刷屏。
+- 该工具用于“检查结构/字段布局”，不做点云内容解析与可视化。
