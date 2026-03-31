@@ -1,0 +1,20 @@
+lidar_preprocess_tester_node:
+  ros__parameters:
+    topic_name: "/points_raw"
+    lidar_type: 6         # 1:VELO16 2:LS16 3:RS16 4:VELO16SIM 5:AVIA 6:MID360 7:HESAIXT32 8:JT128
+    blind: 1.0
+    point_filter_num: 1
+    n_scans: 6
+    sort_by_time: false
+    publish_full_cloud: true
+    publish_surf_cloud: true
+
+# ROS1 使用示例：
+# topic_name: /points_raw
+# lidar_type: 6
+# blind: 1.0
+# point_filter_num: 1
+# n_scans: 6
+# sort_by_time: false
+# publish_full_cloud: true
+# publish_surf_cloud: true
